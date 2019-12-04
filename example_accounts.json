@@ -1,0 +1,16 @@
+{
+  "accounts": [
+    {
+      "name": "accountname",
+      "password": "password2",
+      "count_zeny": "True",
+      "char_slot": 0
+    },
+    {
+      "name": "accountname2",
+      "password": "password2",
+      "count_zeny": "False",
+      "char_slot": 1
+    }
+  ]
+}
