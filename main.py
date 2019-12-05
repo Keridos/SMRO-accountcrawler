@@ -30,10 +30,12 @@ list_chars = []
 # regex matching strings for different variables and stuff in the html
 char_match_string = '</td>\n<td>\n.+?\\?module=character&action=view&id=(' \
                     '.+?)&preferred_server=Shining\\+Moon\\+RO'
-head_match_string = '<link rel="stylesheet" .+?css/flux.css.+? />([\\s\\S]+?)\n</head>'
+head_match_string = '<link rel=\"stylesheet\" .+?css/flux.css.+? />([\\s\\S]+?)\n</head>'
 upper_block_match_string = '<body>([\\s\\S]+?)<h2>Viewing Character</h2>'
-lower_block_match_string = '(</div> \n<div class="contentBottom">[\\s\\S]+?)</body>'
-char_zeny_match_string = '<th>Zeny</th>\n<td colspan="2">(.+?)</td>'
+lower_block_match_string = '(</div> \n<div class=\"contentBottom\">[\\s\\S]+?)</body>'
+job_image_match_string = '<table class=\"vertical-table\">\n<tr>([\\s\\S]+?)\n<th>Character ID</th>'
+
+char_zeny_match_string = '<th>Zeny</th>\n<td colspan=\"2\">(.*?)</td>'
 char_name_match_string = '<title>Shining Moon: Viewing Character \\((.+?)\\)</title>'
 
 # the actual code
@@ -41,6 +43,14 @@ new_path = os.getcwd() + '/output/'
 if os.path.exists(new_path):
     shutil.rmtree(new_path, ignore_errors=True)
 os.makedirs(new_path)
+
+
+def get_lines_from_file(path):
+    file = open(path, 'r')
+    output = ''
+    for line in file:
+        output += line
+    return output
 
 
 def get_accounts():
@@ -59,8 +69,13 @@ def parse_char(html):
     head = re.search(head_match_string, html)[1]
     upper_block = re.search(upper_block_match_string, html)[1]
     lower_block = re.search(lower_block_match_string, html)[1]
+    job_image = re.search(job_image_match_string, html)
+    if job_image is not None:
+        job_image = job_image[1]
+    else:
+        job_image = 'thisdoesnotexist'
 
-    html = html.replace(head, '').replace(upper_block, '').replace(lower_block, '')
+    html = html.replace(head, '').replace(upper_block, '').replace(lower_block, '').replace(job_image, '')
 
     # replace relative urls with absolute urls
     html = html.replace('src="', 'src="https://www.shining-moon.com') \
@@ -88,18 +103,17 @@ def overview():
     total_zeny = f'{total_zeny:,}'
     print('Total zeny: ' + total_zeny)
 
-    html_start = \
-        """<html>
-        <head></head>
-        <body><p>Character Overview:</p>"""
-    html_end = \
-        """</body>
-        </html>"""
-    html_content = '\n<br>Total Zeny: ' + total_zeny
+    html_start = get_lines_from_file('data/overview_start.txt')
+
+    html_end = get_lines_from_file('data/overview_end.txt')
+    html_content = '\n<br><h3>Total Zeny: ' + total_zeny + \
+                   '</h3>\n<br><table><tr><th>Account</th><th>Charname</th>' + \
+                   '<th>Zeny</th><th>counted?</th></tr>'
 
     for c in list_chars:
-        html_content += '\n<br>' + c.username + ' - <a href="' + c.url + '">' + c.name + '</a> - ' \
-                        + 'Zeny: ' + c.zeny + ' (counted: ' + str(c.count_zeny).lower() + ')'
+        html_content += '\n<tr><td>' + c.username + '</td><td><a href="' + c.url + '">' \
+                        + c.name + '</a></td><td  align="right">' + '<i>' + c.zeny + '</i></td><td align="right"><i>' \
+                        + str(c.count_zeny).lower() + '</i></td></tr>'
 
     html_overview = html_start + html_content + html_end
 
@@ -111,7 +125,6 @@ def overview():
 
 
 # import account info
-# TODO: potentially convert to API Tokens if implemented on server
 list_accounts = get_accounts()
 
 for a in list_accounts:

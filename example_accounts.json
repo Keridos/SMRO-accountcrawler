@@ -3,13 +3,13 @@
     {
       "name": "accountname",
       "password": "password2",
-      "count_zeny": "True",
+      "count_zeny": true,
       "char_slot": 0
     },
     {
       "name": "accountname2",
       "password": "password2",
-      "count_zeny": "False",
+      "count_zeny": false,
       "char_slot": 1
     }
   ]
