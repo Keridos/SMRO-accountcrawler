@@ -38,13 +38,8 @@ job_image_match_string = '<table class=\"vertical-table\">\n<tr>([\\s\\S]+?)\n<t
 char_zeny_match_string = '<th>Zeny</th>\n<td colspan=\"2\">(.*?)</td>'
 char_name_match_string = '<title>Shining Moon: Viewing Character \\((.+?)\\)</title>'
 
+
 # the actual code
-new_path = os.getcwd() + '/output/'
-if os.path.exists(new_path):
-    shutil.rmtree(new_path, ignore_errors=True)
-os.makedirs(new_path)
-
-
 def get_lines_from_file(path):
     file = open(path, 'r')
     output = ''
@@ -53,6 +48,7 @@ def get_lines_from_file(path):
     return output
 
 
+# load account data from json
 def get_accounts():
     accounts = []
     with open('accounts.json') as json_file:
@@ -63,7 +59,8 @@ def get_accounts():
     return accounts
 
 
-def parse_char(html):
+# here the char data is being extracted from the html and the output is cut down
+def parse_char(html, a):
     global total_zeny
     # remove outer stuff
     head = re.search(head_match_string, html)[1]
@@ -97,6 +94,7 @@ def parse_char(html):
     list_chars.append(Char(a.name, char_name, char_zeny, a.count_zeny, a.char_slot, file))
 
 
+# creates the overview html
 def overview():
     global list_chars
     global total_zeny
@@ -124,41 +122,50 @@ def overview():
     webbrowser.open_new_tab(filename)
 
 
-# import account info
-list_accounts = get_accounts()
+# main entry point
+def main():
+    # empty/create output folder
+    new_path = os.getcwd() + '/output/'
+    if os.path.exists(new_path):
+        shutil.rmtree(new_path, ignore_errors=True)
+    os.makedirs(new_path)
 
-for a in list_accounts:
-    payload = {'username': a.name,
-               'password': a.pw,
-               'server': 'Shining Moon RO'}
+    # import account info
+    list_accounts = get_accounts()
 
-    with requests.session() as s:
-        # Login
-        s.post('https://www.shining-moon.com/?module=account&action=login&return_url=', data=payload)
+    for a in list_accounts:
+        payload = {'username': a.name,
+                   'password': a.pw,
+                   'server': 'Shining Moon RO'}
 
-        # get account page
-        r = s.get('https://www.shining-moon.com/?module=account&action=view')
+        with requests.session() as s:
+            # Login
+            s.post('https://www.shining-moon.com/?module=account&action=login&return_url=', data=payload)
 
-        char = ""
+            # get account page
+            r = s.get('https://www.shining-moon.com/?module=account&action=view')
 
-        if a.char_slot == 0:
-            for i in range(1, 27):
+            if a.char_slot == 0:
+                for i in range(1, 27):
+                    # search for char id
+                    char_matches = re.search(str(i) + char_match_string, r.text)
+                    if char_matches is None:
+                        continue
+                    char_id = char_matches[1]
+                    # get character page for char with set id
+                    char = s.get('https://www.shining-moon.com/?module=character&action=view&id=' +
+                                 char_id + '&preferred_server=Shining+Moon+RO')
+                    parse_char(char.text, a)
+            else:
                 # search for char id
-                char_matches = re.search(str(i) + char_match_string, r.text)
-                if char_matches is None:
-                    continue
-                char_id = char_matches[1]
+                char_matches = re.search(char_match_string, r.text)
+                char_id = char_matches[a.char_slot]
                 # get character page for char with set id
                 char = s.get('https://www.shining-moon.com/?module=character&action=view&id=' +
                              char_id + '&preferred_server=Shining+Moon+RO')
-                parse_char(char.text)
-        else:
-            # search for char id
-            char_matches = re.search(char_match_string, r.text)
-            char_id = char_matches[a.char_slot]
-            # get character page for char with set id
-            char = s.get('https://www.shining-moon.com/?module=character&action=view&id=' +
-                         char_id + '&preferred_server=Shining+Moon+RO')
-            parse_char(char.text)
+                parse_char(char.text, a)
+    # after all that is done, create the overview
+    overview()
 
-overview()
+
+main()
