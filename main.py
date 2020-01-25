@@ -1,9 +1,10 @@
-import requests
+import json
 import os
 import re
-import webbrowser
 import shutil
-import json
+import webbrowser
+
+import requests
 
 
 class Account:
@@ -24,17 +25,18 @@ class Char:
         self.url = url
 
 
+# global variables
 total_zeny = 0
 list_chars = []
 
-# regex matching strings for different variables and stuff in the html
-char_match_string = '</td>\n<td>\n.+?\\?module=character&action=view&id=(' \
-                    '.+?)&preferred_server=Shining\\+Moon\\+RO'
+# regex matching strings for different values and stuff in the html
 head_match_string = '<link rel=\"stylesheet\" .+?css/flux.css.+? />([\\s\\S]+?)\n</head>'
 upper_block_match_string = '<body>([\\s\\S]+?)<h2>Viewing Character</h2>'
 lower_block_match_string = '(</div> \n<div class=\"contentBottom\">[\\s\\S]+?)</body>'
 job_image_match_string = '<table class=\"vertical-table\">\n<tr>([\\s\\S]+?)\n<th>Character ID</th>'
 
+char_id_match_string = '</td>\n<td>\n.+?\\?module=character&action=view&id=(' \
+                       '.+?)&preferred_server=Shining\\+Moon\\+RO'
 char_zeny_match_string = '<th>Zeny</th>\n<td colspan=\"2\">(.*?)</td>'
 char_name_match_string = '<title>Shining Moon: Viewing Character \\((.+?)\\)</title>'
 
@@ -62,6 +64,7 @@ def get_accounts():
 # here the char data is being extracted from the html and the output is cut down
 def parse_char(html, a):
     global total_zeny
+
     # remove outer stuff
     head = re.search(head_match_string, html)[1]
     upper_block = re.search(upper_block_match_string, html)[1]
@@ -87,8 +90,10 @@ def parse_char(html, a):
     f.close()
     file = 'file:///' + os.getcwd() + '/output/' + a.name + '-' + char_name + '.html'
 
+    # print username, charname and zeny to terminal
+    print(a.name + ' - ' + char_name + ':', char_zeny)
+
     if a.count_zeny:
-        print(a.name + ' - ' + char_name + ':', char_zeny)
         total_zeny += int(char_zeny.replace(',', ''))
 
     list_chars.append(Char(a.name, char_name, char_zeny, a.count_zeny, a.char_slot, file))
@@ -102,7 +107,6 @@ def overview():
     print('Total zeny: ' + total_zeny)
 
     html_start = get_lines_from_file('data/overview_start.txt')
-
     html_end = get_lines_from_file('data/overview_end.txt')
     html_content = '\n<br><h3>Total Zeny: ' + total_zeny + \
                    '</h3>\n<br><table><tr><th>Account</th><th>Charname</th>' + \
@@ -133,22 +137,25 @@ def main():
     # import account info
     list_accounts = get_accounts()
 
+    # then loop over all the accounts
     for a in list_accounts:
         payload = {'username': a.name,
                    'password': a.pw,
                    'server': 'Shining Moon RO'}
 
+        # start up a new session for each account
         with requests.session() as s:
-            # Login
+            # Login to get some delicious cookies
             s.post('https://www.shining-moon.com/?module=account&action=login&return_url=', data=payload)
 
             # get account page
             r = s.get('https://www.shining-moon.com/?module=account&action=view')
 
+            # determine which characters to scan, then get their page and parse it
             if a.char_slot == 0:
                 for i in range(1, 27):
                     # search for char id
-                    char_matches = re.search(str(i) + char_match_string, r.text)
+                    char_matches = re.search(str(i) + char_id_match_string, r.text)
                     if char_matches is None:
                         continue
                     char_id = char_matches[1]
@@ -158,7 +165,7 @@ def main():
                     parse_char(char.text, a)
             else:
                 # search for char id
-                char_matches = re.search(char_match_string, r.text)
+                char_matches = re.search(char_id_match_string, r.text)
                 char_id = char_matches[a.char_slot]
                 # get character page for char with set id
                 char = s.get('https://www.shining-moon.com/?module=character&action=view&id=' +
