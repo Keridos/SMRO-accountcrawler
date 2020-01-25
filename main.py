@@ -30,15 +30,19 @@ total_zeny = 0
 list_chars = []
 
 # regex matching strings for different values and stuff in the html
-head_match_string = '<link rel=\"stylesheet\" .+?css/flux.css.+? />([\\s\\S]+?)\n</head>'
-upper_block_match_string = '<body>([\\s\\S]+?)<h2>Viewing Character</h2>'
-lower_block_match_string = '(</div> \n<div class=\"contentBottom\">[\\s\\S]+?)</body>'
+head_match_string = '<link rel=\"stylesheet\" .+?css/flux.css.+? />\n([\\s\\S]+?)\n</head>'
+upper_block_match_string = '<body>([\\s\\S]+?)\n<h2>Viewing Character</h2>'
+lower_block_match_string = '</div> \n(<div class=\"contentBottom\">[\\s\\S]+?)</body>'  # leave /div for padding
 job_image_match_string = '<table class=\"vertical-table\">\n<tr>([\\s\\S]+?)\n<th>Character ID</th>'
 
 char_id_match_string = '</td>\n<td>\n.+?\\?module=character&action=view&id=(' \
                        '.+?)&preferred_server=Shining\\+Moon\\+RO'
 char_zeny_match_string = '<th>Zeny</th>\n<td colspan=\"2\">(.*?)</td>'
 char_name_match_string = '<title>Shining Moon: Viewing Character \\((.+?)\\)</title>'
+
+# replacement strings
+head_match_replace_string = "<style>\ndiv {\npadding-right: 10px;\npadding-left: 10px;\n}\n </style>"
+upper_block_replace_string = "\n<div>"
 
 
 # the actual code
@@ -73,9 +77,10 @@ def parse_char(html, a):
     if job_image is not None:
         job_image = job_image[1]
     else:
-        job_image = 'thisdoesnotexist'
+        job_image = 'thisdoesnotexistorrathershouldnotexistinthehtml'
 
-    html = html.replace(head, '').replace(upper_block, '').replace(lower_block, '').replace(job_image, '')
+    html = html.replace(head, head_match_replace_string).replace(upper_block, upper_block_replace_string) \
+        .replace(lower_block, '').replace(job_image, '')
 
     # replace relative urls with absolute urls
     html = html.replace('src="', 'src="https://www.shining-moon.com') \
