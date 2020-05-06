@@ -16,11 +16,12 @@ class Account:
 
 
 class Char:
-    def __init__(self, username, name, zeny, count_zeny, char_slot, url):
+    def __init__(self, username, name, zeny, count_zeny, online_status, char_slot, url):
         self.username = username
         self.name = name
         self.zeny = zeny
         self.count_zeny = count_zeny
+        self.online_status = online_status
         self.char_slot = char_slot
         self.url = url
 
@@ -39,6 +40,7 @@ char_id_match_string = '</td>\n<td>\n.+?\\?module=character&action=view&id=(' \
                        '.+?)&preferred_server=Shining\\+Moon\\+RO'
 char_zeny_match_string = '<th>Zeny</th>\n<td colspan=\"2\">(.*?)</td>'
 char_name_match_string = '<title>Shining Moon: Viewing Character \\((.+?)\\)</title>'
+online_status_match_string = '<th>Online Status</th>\n<td>\n<span class="([onf]+line)">[A-Za-z]+</span>'
 
 # replacement strings
 head_match_replace_string = "<style>\ndiv {\npadding-right: 10px;\npadding-left: 10px;\n}\n </style>"
@@ -88,6 +90,7 @@ def parse_char(html, a):
 
     char_zeny = re.search(char_zeny_match_string, html)[1]
     char_name = re.search(char_name_match_string, html)[1]
+    char_online = re.search(online_status_match_string, html)[1]
 
     # output to html file
     f = open('output/' + a.name + '-' + char_name + '.html', 'w')
@@ -101,7 +104,7 @@ def parse_char(html, a):
     if a.count_zeny:
         total_zeny += int(char_zeny.replace(',', ''))
 
-    list_chars.append(Char(a.name, char_name, char_zeny, a.count_zeny, a.char_slot, file))
+    list_chars.append(Char(a.name, char_name, char_zeny, a.count_zeny, char_online, a.char_slot, file))
 
 
 # creates the overview html
@@ -111,16 +114,16 @@ def overview():
     total_zeny = f'{total_zeny:,}'
     print('Total zeny: ' + total_zeny)
 
-    html_start = get_lines_from_file('data/overview_start.txt')
-    html_end = get_lines_from_file('data/overview_end.txt')
-    html_content = '\n<br><h3>Total Zeny: ' + total_zeny + \
-                   '</h3>\n<br><table><tr><th>Account</th><th>Charname</th>' + \
-                   '<th>Zeny</th><th>counted?</th></tr>'
+    html_start = get_lines_from_file('data/overview_start.html')
+    html_end = get_lines_from_file('data/overview_end.html')
+    html_content = '\n<h1>Total Zeny: ' + total_zeny + \
+                   '</h1>\n<p><table><tr><th>Account</th><th>Charname</th>' + \
+                   '<th>Zeny</th><th>add to total?</th><th>online?</th></tr>'
 
     for c in list_chars:
         html_content += '\n<tr><td>' + c.username + '</td><td><a href="' + c.url + '">' \
                         + c.name + '</a></td><td  align="right">' + '<i>' + c.zeny + '</i></td><td align="right"><i>' \
-                        + str(c.count_zeny).lower() + '</i></td></tr>'
+                        + str(c.count_zeny).lower() + '</i></td><td><i>' + c.online_status + '</i></td></tr>'
 
     html_overview = html_start + html_content + html_end
 
@@ -138,6 +141,7 @@ def main():
     if os.path.exists(new_path):
         shutil.rmtree(new_path, ignore_errors=True)
     os.makedirs(new_path)
+    shutil.copy(os.getcwd() + '/data/style.css', os.getcwd() + '/output/style.css')
 
     # import account info
     list_accounts = get_accounts()
